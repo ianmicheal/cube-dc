@@ -2,6 +2,8 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C++ Express 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cube", "cube.vcxproj", "{65B5DCCD-D143-C9BE-7C8C-4918AA113993}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "md2tool", "md2tool\md2tool.vcxproj", "{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -13,6 +15,12 @@ Global
 		{65B5DCCD-D143-C9BE-7C8C-4918AA113993}.Profile|Win32.ActiveCfg = Profile|Win32
 		{65B5DCCD-D143-C9BE-7C8C-4918AA113993}.Release|Win32.ActiveCfg = Release|Win32
 		{65B5DCCD-D143-C9BE-7C8C-4918AA113993}.Release|Win32.Build.0 = Release|Win32
+		{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}.Debug|Win32.Build.0 = Debug|Win32
+		{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}.Profile|Win32.ActiveCfg = Release|Win32
+		{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}.Profile|Win32.Build.0 = Release|Win32
+		{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}.Release|Win32.ActiveCfg = Release|Win32
+		{2AAF4383-5D5A-47C0-9E32-D617C0A0EE52}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
