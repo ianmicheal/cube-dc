@@ -93,7 +93,11 @@ struct header                   // map file format header
 
 struct vec { float x, y, z; };
 struct block { int x, y, xs, ys; };
-struct mapmodelinfo { int rad, h, zoff, snap; char *name; };
+struct mapmodelinfo {
+	int rad, h, zoff, snap; 
+	char *name;
+	mapmodelinfo(): rad(0), h(0), zoff(0), snap(0), name(0) {}
+};
 
 enum { GUN_FIST = 0, GUN_SG, GUN_CG, GUN_RL, GUN_RIFLE, GUN_FIREBALL, GUN_ICEBALL, GUN_SLIMEBALL, GUN_BITE, NUMGUNS };
 

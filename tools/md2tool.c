@@ -226,6 +226,7 @@ void PrintUsage(void)
     printf("-savelod    The level to save when saving as MD2 (default: 0).\n");
     printf("-skin       Set the specified skin.\n");
     printf("-skinsize   Set skin dimensions.\n");
+	printf("-strips     Do not use triangle fans, only strips (useful on Dreamcast).\n");
     printf("-tcmap      Display texture coordinate map when optimizing.\n");
     printf("-weld       Weld vertices (only for models with one frame).\n");
     printf("-weldtc     Weld texture coordinates (removes all duplicates).\n");
@@ -277,7 +278,13 @@ void DoError(int code)
 //===========================================================================
 void *Load(FILE *file, int offset, int len)
 {
-    void *ptr = malloc(len);
+	void *ptr;
+
+	if (!len)
+	{
+		return 0;
+	}
+    ptr = malloc(len);
     fseek(file, offset, SEEK_SET);
     if(!fread(ptr, len, 1, file))
     {
@@ -897,8 +904,10 @@ void BuildGlCmds(model_t *mo)
     int     best_xyz[1024];
     int     best_st[1024];
     int     best_tris[1024];
-    int     type;
+    int     type, start_type;
     int     numfans, numstrips, avgfan, avgstrip;
+
+	start_type = CheckOption("-strips")?1:0;
 
     printf("Building GL commands.\n");
     mo->modified = true;
@@ -925,7 +934,8 @@ void BuildGlCmds(model_t *mo)
             if(used[i]) continue;
 
             bestlen = 0;
-            for(type = 0; type < 2 ; type++)
+			
+            for(type = start_type; type < 2 ; type++)
             {
                 for (startv =0 ; startv < 3 ; startv++)
                 {
@@ -1881,7 +1891,8 @@ void MoveTexCoord(model_t *mo, int to, int from)
 void ModelWeldTexCoords(model_t *mo)
 {
     int oldnum = mo->info.numTexCoords;
-    int i, k, high = 0;
+    int i, k = 0;
+	int high = -1;
     char refd[4096];
     int numtris = mo->lodinfo[0].numTriangles;
     int numcoords = mo->info.numTexCoords;
@@ -2241,6 +2252,7 @@ int main(int argc, char **argv)
             || !stricmp(argv[i], "-create")
             || !stricmp(argv[i], "-s")
             || !stricmp(argv[i], "-savelod")
+            || !stricmp(argv[i], "-strips")
             || !stricmp(argv[i], "-ef")
             || !stricmp(argv[i], "-op")
             || !stricmp(argv[i], "-fn"))
