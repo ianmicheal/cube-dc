@@ -185,7 +185,8 @@ void setupworld()
 {
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY); 
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
     setarraypointers();
 
     if(hasoverbright)
@@ -204,7 +205,7 @@ vector<strip> strips;
 
 void renderstripssky()
 {
-    glBindTexture(GL_TEXTURE_2D, skyoglid);
+	glBindTexture(GL_TEXTURE_2D, skyoglid);
     loopv(strips) if(strips[i].tex==skyoglid) glDrawArrays(GL_TRIANGLE_STRIP, strips[i].start, strips[i].num);
 };
 

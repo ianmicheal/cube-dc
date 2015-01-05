@@ -1,6 +1,8 @@
 // rendermd2.cpp: loader code adapted from a nehe tutorial
 
 #include "cube.h"
+#include <vector>
+#include <assert.h>
 
 struct md2_header
 {
@@ -29,42 +31,72 @@ struct md2_frame
 
 struct md2
 {
+	struct t_command {float u, v; int index; };
     int numGlCommands;
-    int* glCommands;
     int numTriangles;
     int frameSize;
     int numFrames;
     int numVerts;
     char* frames;
-    vec **mverts;
-    int displaylist;
-    int displaylistverts;
+	std::vector<t_command> compiledCommands;
+	std::vector<int> compiledStripBorders;
+    int compiledStripsVerts;
+	std::vector<vec> lastVertexArray;
+	float lastFrameTime;
     
     mapmodelinfo mmi;
     char *loadname;
     int mdlnum;
     bool loaded;
 
+	md2();
+	~md2();
+
     bool load(char* filename);
     void render(vec &light, int numFrame, int range, float x, float y, float z, float yaw, float pitch, float scale, float speed, int snap, int basetime);
-    void scale(int frame, float scale, int sn);
+    //void scale(int frame, float scale, int sn);
 
-    md2() : numGlCommands(0), frameSize(0), numFrames(0), displaylist(0), loaded(false) {};
-
-    ~md2()
-    {
-        if(glCommands)
-            delete [] glCommands;
-        if(frames)
-            delete [] frames;
-    }
+	int currentStripSize()
+	{
+		if(compiledStripBorders.empty())
+		{
+			return compiledCommands.size();
+		}
+		else
+		{
+			return compiledCommands.size() - compiledStripBorders.back();
+		}
+	}
 };
+
+md2::md2()
+    :numGlCommands(0)
+    ,numTriangles(0)
+    ,frameSize(0)
+    ,numFrames(0)
+    ,numVerts(0)
+    ,frames(0)
+	,compiledStripsVerts(0)
+	,lastFrameTime(-1)
+    ,loadname(0)
+    ,mdlnum(0)
+    ,loaded(0)
+{}
+
+
+md2::~md2()
+{
+    if(frames)
+        delete [] frames;
+}
 
 
 bool md2::load(char* filename)
 {
     FILE* file;
     md2_header header;
+
+	assert(!glGetError());
 
     if((file= fopen(filename, "rb"))==NULL) return false;
 
@@ -84,13 +116,13 @@ bool md2::load(char* filename)
         endianswap(frames + i * header.frameSize, sizeof(float), 6);
     }
 
-    glCommands = new int[header.numGlCommands];
-    if(glCommands==NULL) return false;
+	if(header.numGlCommands == 0)
+		return false;
+    int * glCommands = new int[header.numGlCommands];
 
     fseek(file,       header.offsetGlCommands, SEEK_SET);
-    fread(glCommands, header.numGlCommands*sizeof(int), 1, file);
-
-    endianswap(glCommands, sizeof(int), header.numGlCommands);
+    fread(glCommands, sizeof(int), header.numGlCommands, file);
+	//endianswap(glCommands, sizeof(int), header.numGlCommands);
 
     numFrames    = header.numFrames;
     numGlCommands= header.numGlCommands;
@@ -99,15 +131,98 @@ bool md2::load(char* filename)
     numVerts     = header.numVertices;
 
     fclose(file);
-    
-    mverts = new vec*[numFrames];
-    loopj(numFrames) mverts[j] = NULL;
+
+	std::vector<GLushort> currentStrip;
+
+	bool fansWarned = false;
+	
+	for(int *command = glCommands; (*command)!=0;)
+	{
+		int numVertex = *command;
+		++command;
+		if(numVertex>0)
+		{
+			if(currentStripSize() != 0)
+			{
+				compiledCommands.push_back(compiledCommands.back());
+				if(!(currentStripSize() % 2))
+				{
+					compiledCommands.push_back(compiledCommands.back());
+				}
+				compiledCommands.push_back(*(t_command*)command);
+			}
+			loopi(numVertex)
+			{
+				compiledCommands.push_back(*(t_command*)command);
+				command += 3;
+			}
+		}
+		else            
+		{
+			numVertex = -numVertex;
+			assert(numVertex >= 2);
+			if(!fansWarned)
+			{
+				conoutf("Model has triangle fans: %s", filename);
+				fansWarned = true;
+			}
+			t_command fanAnchor = ((t_command*)command)[0];
+			t_command fanLast = ((t_command*)command)[1];
+			command += 2*3;
+			int phase = 0;
+			loopi(numVertex-2)
+			{
+				if(phase = 0)
+				{
+					if(currentStripSize() != 0)
+					{
+						compiledCommands.push_back(compiledCommands.back());
+						if(!(currentStripSize() % 2))
+						{
+							compiledCommands.push_back(compiledCommands.back());
+						}
+						compiledCommands.push_back(fanLast);
+					}
+					compiledCommands.push_back(fanLast);
+					compiledCommands.push_back(fanAnchor);
+					command += 3;
+				}
+				else
+				{
+					fanLast = ((t_command*)command)[0];
+					compiledCommands.push_back(fanLast);
+					if (phase == 2)
+					{
+						phase = 0;
+					}
+					command += 3;
+				}
+			}
+		}
+
+		if(currentStripSize())
+		{
+			compiledStripsVerts += currentStripSize();
+			compiledStripBorders.push_back(compiledCommands.size());
+		}
+	}
+
+#if 1
+	//if(currentStripSize() != 0)
+	{
+		compiledStripsVerts += currentStripSize();
+		compiledStripBorders.push_back(compiledCommands.size());
+	}
+#endif
+
+	delete[] glCommands;
 
     return true;
 };
 
 float snap(int sn, float f) { return sn ? (float)(((int)(f+sn*0.5f))&(~(sn-1))) : f; };
 
+#if 0
 void md2::scale(int frame, float scale, int sn)
 {
     mverts[frame] = new vec[numVerts];
@@ -122,73 +237,87 @@ void md2::scale(int frame, float scale, int sn)
         v->z =  (snap(sn, cv[2]*cf->scale[2])+cf->translate[2])/sc;
     };
 };
+#endif
 
 void md2::render(vec &light, int frame, int range, float x, float y, float z, float yaw, float pitch, float sc, float speed, int snap, int basetime)
 {
-    loopi(range) if(!mverts[frame+i]) scale(frame+i, sc, snap);
-    
-    glPushMatrix ();
-    glTranslatef(x, y, z);
-    glRotatef(yaw+180, 0, -1, 0);
-    glRotatef(pitch, 0, 0, 1);
-    
+	//loopi(range) if(!mverts[frame+i]) scale(frame+i, sc, snap);
+
+	glPushMatrix ();
+	glTranslatef(x, y, z);
+	glRotatef(yaw+180, 0, -1, 0);
+	glRotatef(pitch, 0, 0, 1);
+
 	glColor3fv((float *)&light);
 
-    if(displaylist && frame==0 && range==1)
-    {
-		glCallList(displaylist);
-		xtraverts += displaylistverts;
-    }
-    else
-    {
-		if(frame==0 && range==1)
+	int time = lastmillis-basetime;
+	int fr1 = (int)(time/speed);
+	float frac1 = (time-fr1*speed)/speed;
+	float frac2 = 1-frac1;
+	fr1 = fr1%range+frame;
+	int fr2 = fr1+1;
+	if(fr2>=frame+range) fr2 = frame;
+	//vec *verts1 = mverts[fr1];
+	//vec *verts2 = mverts[fr2];
+
+	assert(!glGetError());
+
+	float frameTime = (floor(frac1 * 16)/16.f) + fr1;
+	if (frameTime != lastFrameTime)
+	{
+		lastVertexArray.clear();
+		md2_frame *cf1 = (md2_frame *) ((char*)frames+frameSize*fr1);
+		md2_frame *cf2 = (md2_frame *) ((char*)frames+frameSize*fr2);
+		float scale = 16.0f/sc;
+		loop(cmd, (int)compiledCommands.size())
 		{
-			static int displaylistn = 10;
-			glNewList(displaylist = displaylistn++, GL_COMPILE);
-			displaylistverts = xtraverts;
-		};
-		
-		int time = lastmillis-basetime;
-		int fr1 = (int)(time/speed);
-		float frac1 = (time-fr1*speed)/speed;
-		float frac2 = 1-frac1;
-		fr1 = fr1%range+frame;
-		int fr2 = fr1+1;
-		if(fr2>=frame+range) fr2 = frame;
-		vec *verts1 = mverts[fr1];
-		vec *verts2 = mverts[fr2];
+			int vi = compiledCommands[cmd].index;
+			uchar *cv1 = (uchar *)&cf1->vertices[vi].vertex;
+			vec v1;
+			v1.x = (cv1[0]*cf1->scale[0] + cf1->translate[0])/scale;
+			v1.y = -(cv1[1]*cf1->scale[1] + cf1->translate[1])/scale;
+			v1.z = (cv1[2]*cf1->scale[2] + cf1->translate[2])/scale;
+			uchar *cv2 = (uchar *)&cf2->vertices[vi].vertex;
+			vec v2;
+			v2.x = (cv2[0]*cf2->scale[0] + cf2->translate[0])/scale;
+			v2.y = -(cv2[1]*cf2->scale[1] + cf2->translate[1])/scale;
+			v2.z = (cv2[2]*cf2->scale[2] + cf2->translate[2])/scale;
 
-		for(int *command = glCommands; (*command)!=0;)
-		{
-			int numVertex = *command++;
-			if(numVertex>0) { glBegin(GL_TRIANGLE_STRIP); }
-			else            { glBegin(GL_TRIANGLE_FAN); numVertex = -numVertex; };
+			    //    v->y = -(snap(sn, cv[1]*cf->scale[1])+cf->translate[1])/sc;
 
-			loopi(numVertex)
-			{
-				float tu = *((float*)command++);
-				float tv = *((float*)command++);
-				glTexCoord2f(tu, tv);
-				int vn = *command++;
-				vec &v1 = verts1[vn];
-				vec &v2 = verts2[vn];
-				#define ip(c) v1.c*frac2+v2.c*frac1
-				glVertex3f(ip(x), ip(z), ip(y));
-			};
+			vec v;
+			v.x = v1.x*frac2 + v2.x*frac1;
+			v.y = v1.z*frac2 + v2.z*frac1;
+			v.z = v1.y*frac2 + v2.y*frac1;
+			lastVertexArray.push_back(v);
+		}
+		lastFrameTime = frameTime;
+	}
 
-			xtraverts += numVertex;
+	glDisableClientState(GL_COLOR_ARRAY);
+	glVertexPointer(3, GL_FLOAT, sizeof(vec), &lastVertexArray.front());
+	glTexCoordPointer(2, GL_FLOAT, sizeof(t_command), &compiledCommands.front());
 
-			glEnd();
-		};
-		
-		if(displaylist)
-		{
-			glEndList();
-			displaylistverts = xtraverts-displaylistverts;
-		};
-	};
+	assert(!glGetError());
 
-    glPopMatrix();
+	int striplast = 0;
+	for(std::vector<int>::iterator strip = this->compiledStripBorders.begin();
+		strip != compiledStripBorders.end(); ++strip)
+	{
+		assert(*strip >= striplast);
+		glDrawArrays(GL_TRIANGLE_STRIP, striplast, *strip-striplast);
+		striplast = *strip;
+	}
+
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	int i = glGetError();
+
+	assert(!i);
+
+	xtraverts += compiledStripsVerts;
+
+	glPopMatrix();
 }
 
 hashtable<md2 *> *mdllookup = NULL;
@@ -217,7 +346,7 @@ md2 *loadmodel(char *name)
     if(mm) return *mm;
     md2 *m = new md2();
     m->mdlnum = modelnum++;
-    mapmodelinfo mmi = { 2, 2, 0, 0, "" }; 
+    mapmodelinfo mmi ( 2, 2, 0, 0, "" ); 
     m->mmi = mmi;
     m->loadname = newstring(name);
     mdllookup->access(m->loadname, &m);
@@ -227,7 +356,7 @@ md2 *loadmodel(char *name)
 void mapmodel(char *rad, char *h, char *zoff, char *snap, char *name)
 {
 	md2 *m = loadmodel(name);
-    mapmodelinfo mmi = { atoi(rad), atoi(h), atoi(zoff), atoi(snap), m->loadname }; 
+    mapmodelinfo mmi ( atoi(rad), atoi(h), atoi(zoff), atoi(snap), m->loadname ); 
     m->mmi = mmi;
     mapmodels.add(m);
 };

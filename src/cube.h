@@ -97,6 +97,8 @@ struct mapmodelinfo {
 	int rad, h, zoff, snap; 
 	char *name;
 	mapmodelinfo(): rad(0), h(0), zoff(0), snap(0), name(0) {}
+	mapmodelinfo(int _rad, int _h, int _zoff, int _snap, char* _name)
+		:rad(_rad), h(_h), zoff(_zoff), snap(_snap), name(_name) {}
 };
 
 enum { GUN_FIST = 0, GUN_SG, GUN_CG, GUN_RL, GUN_RIFLE, GUN_FIREBALL, GUN_ICEBALL, GUN_SLIMEBALL, GUN_BITE, NUMGUNS };

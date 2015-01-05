@@ -279,6 +279,8 @@ inline float dy(float x) { return x+(float)sin(x*2+lastmillis/900.0f+PI/5)*0.05f
 
 int renderwater(float hf)
 {
+	setarraypointers();
+
     if(wx1<0) return nquads;
 
     glDepthMask(GL_FALSE);
@@ -299,7 +301,7 @@ int renderwater(float hf)
     
     sqr dl;
     dl.r = dl.g = dl.b = 255;
-    
+
     for(int xx = wx1; xx<wx2; xx += watersubdiv)
     {
         for(int yy = wy1; yy<wy2; yy += watersubdiv)

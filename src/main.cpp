@@ -190,7 +190,9 @@ int main(int argc, char **argv)
         static float fps = 30.0f;
         fps = (1000.0f/curtime+fps*50)/51;
         computeraytable(player1->o.x, player1->o.y);
-        readdepth(scr_w, scr_h);
+        //readdepth(scr_w, scr_h);
+
+		//Sleep(100);
         SDL_GL_SwapBuffers();
         extern void updatevol(); updatevol();
         if(framesinmap++<5)	// cheap hack to get rid of initial sparklies, even when triple buffering etc.
